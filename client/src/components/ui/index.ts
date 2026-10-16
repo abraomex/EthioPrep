@@ -7,3 +7,6 @@ export { EmptyState } from './EmptyState';
 export { ErrorMessage } from './ErrorMessage';
 export { ConfirmationDialog } from './ConfirmationDialog';
 export { ProgressBar } from './ProgressBar';
+export { TranslationFallbackBadge } from './TranslationFallbackBadge';
+export { TranslationFallbackBadge } from './TranslationFallbackBadge';
+
