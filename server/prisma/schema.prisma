@@ -1,0 +1,354 @@
+// ============================================================
+// EthioPrep — Prisma Database Schema
+// PostgreSQL Relational Data Model (PERN Stack)
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ------------------------------------------------------------
+// Enums
+// ------------------------------------------------------------
+
+enum UserRole {
+  student
+  admin
+}
+
+enum Stream {
+  natural_science
+  social_science
+  common
+}
+
+enum Language {
+  en
+  am
+}
+
+enum AccessTier {
+  free
+  premium
+}
+
+enum ContentStatus {
+  draft
+  published
+  archived
+}
+
+enum AttemptStatus {
+  active
+  submitted
+  graded
+  expired
+}
+
+enum Difficulty {
+  easy
+  medium
+  hard
+}
+
+enum ResourceType {
+  pdf
+  video
+  article
+  link
+}
+
+// ------------------------------------------------------------
+// 1. Users
+// ------------------------------------------------------------
+
+model User {
+  id                String       @id @default(uuid()) @db.Uuid
+  email             String       @unique @db.VarChar(255)
+  passwordHash      String       @map("password_hash") @db.VarChar(255)
+  displayName       String       @map("display_name") @db.VarChar(100)
+  role              UserRole     @default(student)
+  stream            Stream       @default(natural_science)
+  preferredLanguage Language     @default(en) @map("preferred_language")
+  accessTier        AccessTier   @default(free) @map("access_tier")
+  createdAt         DateTime     @default(now()) @map("created_at")
+  updatedAt         DateTime     @updatedAt @map("updated_at")
+
+  attempts          Attempt[]
+  lessonProgress    LessonProgress[]
+  bookmarks         Bookmark[]
+
+  @@map("users")
+}
+
+// ------------------------------------------------------------
+// 2. Subjects
+// ------------------------------------------------------------
+
+model Subject {
+  id            String       @id @default(uuid()) @db.Uuid
+  slug          String       @unique @db.VarChar(100)
+  stream        Stream
+  titleEn       String       @map("title_en") @db.VarChar(200)
+  titleAm       String       @map("title_am") @db.VarChar(200)
+  descriptionEn String       @map("description_en") @db.Text
+  descriptionAm String       @map("description_am") @db.Text
+  sortOrder     Int          @default(0) @map("sort_order")
+  published     Boolean      @default(false)
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @updatedAt @map("updated_at")
+
+  topics        Topic[]
+  resources     Resource[]
+  exams         Exam[]
+
+  @@index([stream, published])
+  @@map("subjects")
+}
+
+// ------------------------------------------------------------
+// 3. Topics (Hierarchical Self-Referencing Tree)
+// ------------------------------------------------------------
+
+model Topic {
+  id            String       @id @default(uuid()) @db.Uuid
+  subjectId     String       @map("subject_id") @db.Uuid
+  parentTopicId String?      @map("parent_topic_id") @db.Uuid
+  titleEn       String       @map("title_en") @db.VarChar(200)
+  titleAm       String       @map("title_am") @db.VarChar(200)
+  sortOrder     Int          @default(0) @map("sort_order")
+  published     Boolean      @default(false)
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @updatedAt @map("updated_at")
+
+  subject       Subject      @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  parentTopic   Topic?       @relation("TopicHierarchy", fields: [parentTopicId], references: [id], onDelete: SetNull)
+  childTopics   Topic[]      @relation("TopicHierarchy")
+
+  lessons       Lesson[]
+  questions     Question[]
+
+  @@index([subjectId, parentTopicId])
+  @@map("topics")
+}
+
+// ------------------------------------------------------------
+// 4. Lessons
+// ------------------------------------------------------------
+
+model Lesson {
+  id               String         @id @default(uuid()) @db.Uuid
+  topicId          String         @map("topic_id") @db.Uuid
+  titleEn          String         @map("title_en") @db.VarChar(200)
+  titleAm          String         @map("title_am") @db.VarChar(200)
+  bodyEn           String         @map("body_en") @db.Text
+  bodyAm           String         @map("body_am") @db.Text
+  status           ContentStatus  @default(draft)
+  accessTier       AccessTier     @default(free) @map("access_tier")
+  estimatedMinutes Int            @default(10) @map("estimated_minutes")
+  sortOrder        Int            @default(0) @map("sort_order")
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
+
+  topic            Topic          @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  progress         LessonProgress[]
+  bookmarks        Bookmark[]
+
+  @@index([topicId, status])
+  @@map("lessons")
+}
+
+// ------------------------------------------------------------
+// 5. Resources (Downloadable study sheets, formula guides)
+// ------------------------------------------------------------
+
+model Resource {
+  id           String       @id @default(uuid()) @db.Uuid
+  subjectId    String       @map("subject_id") @db.Uuid
+  titleEn      String       @map("title_en") @db.VarChar(200)
+  titleAm      String       @map("title_am") @db.VarChar(200)
+  resourceType ResourceType @map("resource_type")
+  url          String       @db.VarChar(500)
+  licenseNote  String       @map("license_note") @db.VarChar(255)
+  accessTier   AccessTier   @default(free) @map("access_tier")
+  published    Boolean      @default(false)
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+
+  subject      Subject      @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@index([subjectId, published])
+  @@map("resources")
+}
+
+// ------------------------------------------------------------
+// 6. Questions
+// ------------------------------------------------------------
+
+model Question {
+  id            String           @id @default(uuid()) @db.Uuid
+  topicId       String           @map("topic_id") @db.Uuid
+  promptEn      String           @map("prompt_en") @db.Text
+  promptAm      String           @map("prompt_am") @db.Text
+  explanationEn String           @map("explanation_en") @db.Text
+  explanationAm String           @map("explanation_am") @db.Text
+  difficulty    Difficulty       @default(medium)
+  status        ContentStatus    @default(published)
+  createdAt     DateTime         @default(now()) @map("created_at")
+  updatedAt     DateTime         @updatedAt @map("updated_at")
+
+  topic         Topic            @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  options       QuestionOption[]
+  examQuestions ExamQuestion[]
+  answers       AttemptAnswer[]
+  bookmarks     Bookmark[]
+
+  @@index([topicId, status])
+  @@map("questions")
+}
+
+// ------------------------------------------------------------
+// 7. Question Options
+// ------------------------------------------------------------
+
+model QuestionOption {
+  id         String          @id @default(uuid()) @db.Uuid
+  questionId String          @map("question_id") @db.Uuid
+  label      String          @db.VarChar(10) // 'A', 'B', 'C', 'D'
+  textEn     String          @map("text_en") @db.Text
+  textAm     String          @map("text_am") @db.Text
+  sortOrder  Int             @default(0) @map("sort_order")
+  isCorrect  Boolean         @default(false) @map("is_correct")
+
+  question   Question        @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  selectedIn AttemptAnswer[]
+
+  @@index([questionId])
+  @@map("question_options")
+}
+
+// ------------------------------------------------------------
+// 8. Exams
+// ------------------------------------------------------------
+
+model Exam {
+  id              String         @id @default(uuid()) @db.Uuid
+  subjectId       String         @map("subject_id") @db.Uuid
+  titleEn         String         @map("title_en") @db.VarChar(200)
+  titleAm         String         @map("title_am") @db.VarChar(200)
+  descriptionEn   String         @map("description_en") @db.Text
+  descriptionAm   String         @map("description_am") @db.Text
+  durationSeconds Int            @default(5400) @map("duration_seconds") // Default 90 min
+  accessTier      AccessTier     @default(free) @map("access_tier")
+  status          ContentStatus  @default(draft)
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+
+  subject         Subject        @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  examQuestions   ExamQuestion[]
+  attempts        Attempt[]
+
+  @@index([subjectId, status])
+  @@map("exams")
+}
+
+// ------------------------------------------------------------
+// 9. Exam Questions (Join Table)
+// ------------------------------------------------------------
+
+model ExamQuestion {
+  examId     String   @map("exam_id") @db.Uuid
+  questionId String   @map("question_id") @db.Uuid
+  sortOrder  Int      @default(0) @map("sort_order")
+  points     Int      @default(1)
+
+  exam       Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@id([examId, questionId])
+  @@map("exam_questions")
+}
+
+// ------------------------------------------------------------
+// 10. Attempts
+// ------------------------------------------------------------
+
+model Attempt {
+  id          String         @id @default(uuid()) @db.Uuid
+  userId      String         @map("user_id") @db.Uuid
+  examId      String         @map("exam_id") @db.Uuid
+  startedAt   DateTime       @default(now()) @map("started_at")
+  expiresAt   DateTime       @map("expires_at")
+  submittedAt DateTime?      @map("submitted_at")
+  score       Int?
+  maxScore    Int?           @map("max_score")
+  status      AttemptStatus  @default(active)
+
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exam        Exam           @relation(fields: [examId], references: [id], onDelete: Cascade)
+  answers     AttemptAnswer[]
+
+  @@index([userId, examId])
+  @@map("attempts")
+}
+
+// ------------------------------------------------------------
+// 11. Attempt Answers
+// ------------------------------------------------------------
+
+model AttemptAnswer {
+  attemptId        String          @map("attempt_id") @db.Uuid
+  questionId       String          @map("question_id") @db.Uuid
+  selectedOptionId String?         @map("selected_option_id") @db.Uuid
+  isCorrect        Boolean?        @map("is_correct")
+  pointsAwarded    Int?            @map("points_awarded")
+
+  attempt          Attempt         @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question         Question        @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  selectedOption   QuestionOption? @relation(fields: [selectedOptionId], references: [id], onDelete: SetNull)
+
+  @@id([attemptId, questionId])
+  @@map("attempt_answers")
+}
+
+// ------------------------------------------------------------
+// 12. Lesson Progress
+// ------------------------------------------------------------
+
+model LessonProgress {
+  userId      String   @map("user_id") @db.Uuid
+  lessonId    String   @map("lesson_id") @db.Uuid
+  completedAt DateTime @default(now()) @map("completed_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson      Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@id([userId, lessonId])
+  @@map("lesson_progress")
+}
+
+// ------------------------------------------------------------
+// 13. Bookmarks
+// ------------------------------------------------------------
+
+model Bookmark {
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  lessonId   String?   @map("lesson_id") @db.Uuid
+  questionId String?   @map("question_id") @db.Uuid
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson     Lesson?   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  question   Question? @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, lessonId, questionId])
+  @@map("bookmarks")
+}
+
