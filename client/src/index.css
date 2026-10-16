@@ -1,0 +1,95 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Ethiopic:wght@400;500;600;700&display=swap');
+@import 'tailwindcss';
+
+@theme {
+  --color-brand-navy: #142D4E;
+  --color-brand-navy-light: #1E3F6B;
+  --color-brand-navy-dark: #0E1F35;
+  --color-brand-teal: #167D78;
+  --color-brand-teal-light: #1A9B95;
+  --color-brand-teal-dark: #125F5B;
+  --color-brand-bg: #F3F6FA;
+  --color-brand-bg-alt: #E8ECF2;
+  --color-brand-gold: #F0B44D;
+  --color-brand-gold-light: #F5CC7A;
+  --color-brand-gold-dark: #D99A2B;
+  --color-surface: #FFFFFF;
+  --color-surface-muted: #F8F9FB;
+  --color-text-primary: #142D4E;
+  --color-text-secondary: #4A5568;
+  --color-text-muted: #718096;
+  --color-text-inverse: #FFFFFF;
+  --color-status-success: #22C55E;
+  --color-status-error: #EF4444;
+  --color-status-warning: #F59E0B;
+  --color-status-info: #3B82F6;
+  --color-border: #E2E8F0;
+  --color-border-focus: #167D78;
+
+  --font-sans: 'Inter', 'Noto Sans Ethiopic', system-ui, sans-serif;
+  --font-ethiopic: 'Noto Sans Ethiopic', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+  --shadow-card: 0 1px 3px rgba(20,45,78,0.08), 0 1px 2px rgba(20,45,78,0.06);
+  --shadow-card-hover: 0 4px 12px rgba(20,45,78,0.12);
+  --shadow-nav: 0 2px 8px rgba(20,45,78,0.08);
+  --shadow-modal: 0 20px 60px rgba(20,45,78,0.2);
+
+  --radius-card: 12px;
+  --radius-button: 8px;
+  --radius-badge: 6px;
+  --radius-pill: 9999px;
+}
+
+/* Base styles */
+html {
+  font-family: var(--font-sans);
+  color: var(--color-text-primary);
+  background-color: var(--color-brand-bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+/* Ethiopic-specific typography */
+.font-ethiopic {
+  font-family: var(--font-ethiopic);
+  line-height: 1.8;
+}
+
+/* KaTeX math mobile-safe */
+.katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  max-width: 100%;
+  padding: 0.5rem 0;
+  -webkit-overflow-scrolling: touch;
+}
+
+.katex-display > .katex {
+  white-space: nowrap;
+}
+
+.katex {
+  font-size: 1.05em;
+}
+
+/* Focus styles */
+*:focus-visible {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 2px;
+}
+
+/* Scrollbar for narrow screens */
+::-webkit-scrollbar {
+  height: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 4px;
+}
