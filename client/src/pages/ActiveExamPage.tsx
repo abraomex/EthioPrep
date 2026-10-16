@@ -1,91 +1,79 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useLanguage } from '../lib/i18n';
 import { Button } from '../components/ui/Button';
+import { Timer } from '../components/exam/Timer';
+import { QuestionOption } from '../components/exam/QuestionOption';
+import { QuestionNavigator } from '../components/exam/QuestionNavigator';
 import { ConfirmationDialog } from '../components/ui/ConfirmationDialog';
-
-interface QuestionItem {
-  id: string;
-  prompt: string;
-  options: { id: string; label: string; text: string }[];
-}
+import { mockExams } from '../lib/mockExams';
 
 export function ActiveExamPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
 
-  const totalTimeSeconds = 90 * 60; // 90 min
-  const [secondsRemaining, setSecondsRemaining] = useState(totalTimeSeconds);
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const examId = id || 'math-mock-1';
+  const exam = mockExams[examId] || mockExams['math-mock-1'];
+
+  const storageAnswersKey = `ethioprep_exam_${exam.id}_answers`;
+  const storageFlagsKey = `ethioprep_exam_${exam.id}_flags`;
+  const storageTimeKey = `ethioprep_exam_${exam.id}_time`;
+
+  // Offline-resilient answer cache from sessionStorage
   const [answers, setAnswers] = useState<Record<string, string>>(() => {
     try {
-      const stored = sessionStorage.getItem(`exam_${id}_answers`);
+      const stored = sessionStorage.getItem(storageAnswersKey);
       return stored ? JSON.parse(stored) : {};
     } catch {
       return {};
     }
   });
+
+  // Offline-resilient flagged state from sessionStorage
   const [flagged, setFlagged] = useState<Record<string, boolean>>(() => {
     try {
-      const stored = sessionStorage.getItem(`exam_${id}_flags`);
+      const stored = sessionStorage.getItem(storageFlagsKey);
       return stored ? JSON.parse(stored) : {};
     } catch {
       return {};
     }
   });
+
+  // Countdown timer with persisted remaining time
+  const [secondsRemaining, setSecondsRemaining] = useState<number>(() => {
+    try {
+      const stored = sessionStorage.getItem(storageTimeKey);
+      if (stored) {
+        const parsed = parseInt(stored, 10);
+        if (!isNaN(parsed) && parsed > 0) return parsed;
+      }
+    } catch {
+      // Ignore
+    }
+    return exam.durationSeconds;
+  });
+
+  const [currentIndex, setCurrentIndex] = useState(0);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
-  const sampleQuestions: QuestionItem[] = [
-    {
-      id: 'q-1',
-      prompt: 'If f(x) = 3x^2 - 4x + 7, what is f\'(2)?',
-      options: [
-        { id: 'opt-1', label: 'A', text: '8' },
-        { id: 'opt-2', label: 'B', text: '12' },
-        { id: 'opt-3', label: 'C', text: '14' },
-        { id: 'opt-4', label: 'D', text: '16' },
-      ],
-    },
-    {
-      id: 'q-2',
-      prompt: 'What is the limit of (sin x)/x as x approaches 0?',
-      options: [
-        { id: 'opt-5', label: 'A', text: '0' },
-        { id: 'opt-6', label: 'B', text: '1' },
-        { id: 'opt-7', label: 'C', text: 'Infinity' },
-        { id: 'opt-8', label: 'D', text: 'Undefined' },
-      ],
-    },
-    {
-      id: 'q-3',
-      prompt: 'Which of the following is the derivative of e^(2x)?',
-      options: [
-        { id: 'opt-9', label: 'A', text: 'e^(2x)' },
-        { id: 'opt-10', label: 'B', text: '2e^(2x)' },
-        { id: 'opt-11', label: 'C', text: 'e^(2x)/2' },
-        { id: 'opt-12', label: 'D', text: '4e^(2x)' },
-      ],
-    },
-    {
-      id: 'q-4',
-      prompt: 'The area under the curve y = 2x from x = 0 to x = 3 is equal to:',
-      options: [
-        { id: 'opt-13', label: 'A', text: '6' },
-        { id: 'opt-14', label: 'B', text: '9' },
-        { id: 'opt-15', label: 'C', text: '12' },
-        { id: 'opt-16', label: 'D', text: '18' },
-      ],
-    },
-  ];
+  // Sync state to sessionStorage on every interaction
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(storageAnswersKey, JSON.stringify(answers));
+      sessionStorage.setItem(storageFlagsKey, JSON.stringify(flagged));
+      sessionStorage.setItem(storageTimeKey, secondsRemaining.toString());
+    } catch {
+      // Ignore
+    }
+  }, [answers, flagged, secondsRemaining, storageAnswersKey, storageFlagsKey, storageTimeKey]);
 
-  // Timer countdown
+  // Countdown timer tick
   useEffect(() => {
     const timer = setInterval(() => {
       setSecondsRemaining((prev) => {
         if (prev <= 1) {
           clearInterval(timer);
-          handleSubmitFinal();
           return 0;
         }
         return prev - 1;
@@ -94,139 +82,190 @@ export function ActiveExamPage() {
     return () => clearInterval(timer);
   }, []);
 
-  // Sync to sessionStorage for offline resilience
-  useEffect(() => {
-    try {
-      sessionStorage.setItem(`exam_${id}_answers`, JSON.stringify(answers));
-      sessionStorage.setItem(`exam_${id}_flags`, JSON.stringify(flagged));
-    } catch {
-      // Ignore
-    }
-  }, [answers, flagged, id]);
+  const currentQ = exam.questions[currentIndex];
+  const isCurrentFlagged = !!flagged[currentQ.id];
 
-  const currentQ = sampleQuestions[currentIndex];
-  const isFlagged = !!flagged[currentQ.id];
-  const answeredCount = Object.keys(answers).length;
-  const unansweredCount = sampleQuestions.length - answeredCount;
+  const answeredIndices = useMemo(() => {
+    const set = new Set<number>();
+    exam.questions.forEach((q, idx) => {
+      if (answers[q.id]) set.add(idx);
+    });
+    return set;
+  }, [answers, exam.questions]);
 
-  const handleSelectOption = (optId: string) => {
-    setAnswers((prev) => ({ ...prev, [currentQ.id]: optId }));
+  const flaggedIndices = useMemo(() => {
+    const set = new Set<number>();
+    exam.questions.forEach((q, idx) => {
+      if (flagged[q.id]) set.add(idx);
+    });
+    return set;
+  }, [flagged, exam.questions]);
+
+  const unansweredCount = exam.questions.length - answeredIndices.size;
+
+  const handleSelectOption = (optionId: string) => {
+    setAnswers((prev) => ({
+      ...prev,
+      [currentQ.id]: optionId,
+    }));
   };
 
   const handleToggleFlag = () => {
-    setFlagged((prev) => ({ ...prev, [currentQ.id]: !prev[currentQ.id] }));
+    setFlagged((prev) => ({
+      ...prev,
+      [currentQ.id]: !prev[currentQ.id],
+    }));
   };
 
-  const handleSubmitFinal = () => {
+  const handleSubmitAttempt = useCallback(() => {
     setIsConfirmOpen(false);
-    navigate(`/attempts/mock-attempt-1/results`);
-  };
 
-  const formatTimer = (secs: number) => {
-    const m = Math.floor(secs / 60);
-    const s = secs % 60;
-    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-  };
+    // Calculate score
+    let totalScore = 0;
+    const reviewDetails = exam.questions.map((q, idx) => {
+      const selectedId = answers[q.id];
+      const isCorrect = selectedId === q.correctOptionId;
+      if (isCorrect) totalScore += q.points;
+
+      const selectedOpt = q.options.find((o) => o.id === selectedId);
+      const correctOpt = q.options.find((o) => o.id === q.correctOptionId);
+
+      return {
+        questionNumber: idx + 1,
+        promptEn: q.promptEn,
+        promptAm: q.promptAm,
+        topicTitle: q.topicTitle,
+        yourAnswer: selectedOpt
+          ? `${selectedOpt.label}) ${language === 'am' ? selectedOpt.textAm : selectedOpt.textEn}`
+          : 'No answer selected',
+        correctAnswer: correctOpt
+          ? `${correctOpt.label}) ${language === 'am' ? correctOpt.textAm : correctOpt.textEn}`
+          : '',
+        isCorrect,
+        explanationEn: q.explanationEn,
+        explanationAm: q.explanationAm,
+      };
+    });
+
+    const timeTaken = exam.durationSeconds - secondsRemaining;
+
+    // Cache latest attempt result for the results page
+    const resultPayload = {
+      examId: exam.id,
+      examTitleEn: exam.titleEn,
+      examTitleAm: exam.titleAm,
+      score: totalScore,
+      maxScore: exam.questions.length,
+      timeTakenSeconds: timeTaken,
+      totalTimeSeconds: exam.durationSeconds,
+      reviewDetails,
+    };
+
+    try {
+      sessionStorage.setItem('ethioprep_latest_result', JSON.stringify(resultPayload));
+      // Clean up in-progress answers
+      sessionStorage.removeItem(storageAnswersKey);
+      sessionStorage.removeItem(storageFlagsKey);
+      sessionStorage.removeItem(storageTimeKey);
+    } catch {
+      // Ignore
+    }
+
+    navigate(`/attempts/${exam.id}-attempt-1/results`);
+  }, [answers, exam, language, navigate, secondsRemaining, storageAnswersKey, storageFlagsKey, storageTimeKey]);
+
+  // Handle timer expiration
+  const handleTimerExpire = useCallback(() => {
+    alert(t('exam.timeUp') + ' ' + t('exam.autoSubmitted'));
+    handleSubmitAttempt();
+  }, [handleSubmitAttempt, t]);
 
   return (
-    <div className="min-h-screen bg-brand-bg flex flex-col">
-      {/* Top Exam Navigation Bar */}
-      <header className="sticky top-0 z-30 bg-brand-navy text-white px-4 py-3 shadow-md flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <span className="font-extrabold text-base md:text-lg">EthioPrep Exam</span>
-          <span className="hidden sm:inline-block text-white/60">|</span>
-          <span className="hidden sm:inline-block text-caption text-white/80">
-            Q {currentIndex + 1} of {sampleQuestions.length}
-          </span>
-        </div>
-
-        <div className="flex items-center gap-4">
-          {/* Timer Display */}
-          <div
-            className={`font-mono text-base md:text-lg font-bold px-3 py-1 rounded-badge flex items-center gap-2 ${
-              secondsRemaining < 300
-                ? 'bg-status-error text-white animate-pulse'
-                : 'bg-white/10 text-white'
-            }`}
-          >
-            <span>⏱</span>
-            <span>{formatTimer(secondsRemaining)}</span>
+    <div className="min-h-screen bg-brand-bg flex flex-col select-none">
+      {/* Immersive Top Exam Bar (No external public links) */}
+      <header className="sticky top-0 z-40 bg-brand-navy text-white px-4 py-3 shadow-md border-b border-white/10">
+        <div className="max-w-[1200px] mx-auto flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <span className="w-7 h-7 rounded-badge bg-brand-teal text-white flex items-center justify-center font-bold text-sm">
+              E
+            </span>
+            <div className="overflow-hidden">
+              <h2 className="font-bold text-body-sm sm:text-body text-white truncate max-w-[200px] sm:max-w-md">
+                {language === 'am' ? exam.titleAm : exam.titleEn}
+              </h2>
+              <span className="text-caption text-white/70 block">
+                Question {currentIndex + 1} of {exam.questions.length}
+              </span>
+            </div>
           </div>
 
-          <Button
-            size="sm"
-            variant="secondary"
-            className="bg-brand-gold text-brand-navy hover:bg-brand-gold-light font-bold"
-            onClick={() => setIsConfirmOpen(true)}
-          >
-            {t('exam.submit')}
-          </Button>
+          <div className="flex items-center gap-3 shrink-0">
+            {/* Interactive Timer */}
+            <Timer
+              remainingSeconds={secondsRemaining}
+              totalSeconds={exam.durationSeconds}
+              onExpire={handleTimerExpire}
+            />
+
+            <Button
+              size="sm"
+              variant="secondary"
+              className="bg-brand-gold text-brand-navy hover:bg-brand-gold-light font-bold"
+              onClick={() => setIsConfirmOpen(true)}
+            >
+              {t('exam.submit')}
+            </Button>
+          </div>
         </div>
       </header>
 
-      {/* Main Exam Area */}
-      <div className="flex-1 max-w-[1000px] w-full mx-auto px-4 py-6 grid grid-cols-1 md:grid-cols-4 gap-6">
-        {/* Question Content (Left 3 columns) */}
+      {/* Main Exam Content Grid */}
+      <div className="flex-1 max-w-[1200px] w-full mx-auto px-4 py-6 grid grid-cols-1 md:grid-cols-4 gap-6">
+        {/* Active Question Area (3 Cols) */}
         <div className="md:col-span-3 space-y-6">
-          <div className="bg-surface rounded-card p-6 md:p-8 border border-border shadow-card space-y-6">
-            <div className="flex items-center justify-between">
-              <span className="text-body-sm font-bold text-text-muted uppercase">
-                Question {currentIndex + 1}
+          <div className="bg-surface rounded-card p-6 sm:p-8 border border-border shadow-card space-y-6">
+            <div className="flex items-center justify-between gap-2 border-b border-border pb-4">
+              <span className="text-caption font-bold text-brand-teal uppercase tracking-wider">
+                {currentQ.topicTitle} • Question {currentIndex + 1} of {exam.questions.length}
               </span>
+
+              {/* Flag Toggle Button */}
               <button
                 type="button"
                 onClick={handleToggleFlag}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-badge text-caption font-semibold transition-colors cursor-pointer border ${
-                  isFlagged
-                    ? 'bg-brand-gold/20 text-brand-gold-dark border-brand-gold'
-                    : 'bg-surface text-text-muted border-border hover:bg-brand-bg'
-                }`}
+                className={`
+                  inline-flex items-center gap-1.5 px-3 py-1.5 rounded-badge text-caption font-bold transition-all cursor-pointer border
+                  ${isCurrentFlagged
+                    ? 'bg-brand-gold text-brand-navy border-brand-gold shadow-sm'
+                    : 'bg-surface text-text-muted border-border hover:bg-brand-bg hover:text-text-primary'
+                  }
+                `.trim()}
               >
                 <span>🚩</span>
-                <span>{isFlagged ? 'Flagged' : 'Flag for Review'}</span>
+                <span>{isCurrentFlagged ? t('exam.flagged') : t('exam.flag')}</span>
               </button>
             </div>
 
-            <h2 className="text-h3 font-bold text-brand-navy leading-relaxed">
-              {currentQ.prompt}
+            {/* Question Prompt */}
+            <h2 className="text-h3 sm:text-h2 font-bold text-brand-navy leading-relaxed">
+              {language === 'am' ? currentQ.promptAm : currentQ.promptEn}
             </h2>
 
-            {/* Options */}
-            <div className="space-y-3">
-              {currentQ.options.map((opt) => {
-                const isSelected = answers[currentQ.id] === opt.id;
-                return (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    onClick={() => handleSelectOption(opt.id)}
-                    className={`
-                      w-full p-4 rounded-button border text-left flex items-center gap-4 transition-all cursor-pointer
-                      ${isSelected
-                        ? 'border-brand-teal bg-brand-teal/10 font-bold ring-2 ring-brand-teal/20'
-                        : 'border-border bg-surface hover:bg-brand-bg hover:border-brand-teal/40'
-                      }
-                    `}
-                  >
-                    <span
-                      className={`
-                        w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm shrink-0 border
-                        ${isSelected
-                          ? 'bg-brand-teal text-white border-brand-teal'
-                          : 'bg-surface-muted text-text-secondary border-border'
-                        }
-                      `}
-                    >
-                      {opt.label}
-                    </span>
-                    <span className="text-body text-text-primary">{opt.text}</span>
-                  </button>
-                );
-              })}
+            {/* 4 Options (A, B, C, D) */}
+            <div className="space-y-3 pt-2">
+              {currentQ.options.map((opt) => (
+                <QuestionOption
+                  key={opt.id}
+                  label={opt.label}
+                  text={language === 'am' ? opt.textAm : opt.textEn}
+                  isSelected={answers[currentQ.id] === opt.id}
+                  onSelect={() => handleSelectOption(opt.id)}
+                />
+              ))}
             </div>
 
-            {/* Previous / Next buttons */}
-            <div className="pt-4 border-t border-border flex items-center justify-between">
+            {/* Navigation Bottom Controls */}
+            <div className="pt-6 border-t border-border flex items-center justify-between gap-4">
               <Button
                 variant="outline"
                 size="md"
@@ -235,68 +274,51 @@ export function ActiveExamPage() {
               >
                 ← {t('exam.previous')}
               </Button>
-              <Button
-                variant="primary"
-                size="md"
-                disabled={currentIndex === sampleQuestions.length - 1}
-                onClick={() => setCurrentIndex((prev) => Math.min(sampleQuestions.length - 1, prev + 1))}
-              >
-                {t('exam.next')} →
-              </Button>
+
+              <div className="text-caption text-text-muted font-medium">
+                {answeredIndices.has(currentIndex) ? '✓ Answered' : 'Unanswered'}
+              </div>
+
+              {currentIndex < exam.questions.length - 1 ? (
+                <Button
+                  variant="primary"
+                  size="md"
+                  onClick={() => setCurrentIndex((prev) => Math.min(exam.questions.length - 1, prev + 1))}
+                >
+                  {t('exam.next')} →
+                </Button>
+              ) : (
+                <Button
+                  variant="secondary"
+                  size="md"
+                  className="bg-brand-gold text-brand-navy font-bold hover:bg-brand-gold-light"
+                  onClick={() => setIsConfirmOpen(true)}
+                >
+                  {t('exam.submit')} →
+                </Button>
+              )}
             </div>
           </div>
         </div>
 
-        {/* Question Navigator Grid (Right 1 column) */}
+        {/* Question Navigator (1 Col) */}
         <div className="md:col-span-1 space-y-4">
-          <div className="bg-surface rounded-card p-4 border border-border shadow-card space-y-3">
-            <h3 className="font-bold text-body-sm text-brand-navy">Question Navigator</h3>
-            <div className="grid grid-cols-4 gap-2">
-              {sampleQuestions.map((q, idx) => {
-                const isAnswered = !!answers[q.id];
-                const isItemFlagged = !!flagged[q.id];
-                const isCurrent = idx === currentIndex;
+          <QuestionNavigator
+            totalQuestions={exam.questions.length}
+            currentIndex={currentIndex}
+            answeredIndices={answeredIndices}
+            flaggedIndices={flaggedIndices}
+            onNavigate={(idx) => setCurrentIndex(idx)}
+          />
 
-                let cellBg = 'bg-surface text-text-primary border-border';
-                if (isAnswered) cellBg = 'bg-brand-teal text-white border-brand-teal';
-                if (isItemFlagged) cellBg = 'bg-brand-gold text-white border-brand-gold';
-
-                return (
-                  <button
-                    key={q.id}
-                    type="button"
-                    onClick={() => setCurrentIndex(idx)}
-                    className={`
-                      aspect-square rounded-button border text-xs font-bold flex items-center justify-center transition-all cursor-pointer
-                      ${cellBg}
-                      ${isCurrent ? 'ring-2 ring-brand-navy ring-offset-2' : ''}
-                    `}
-                  >
-                    {idx + 1}
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="pt-3 border-t border-border text-caption space-y-1 text-text-secondary">
-              <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-brand-teal" />
-                <span>Answered ({answeredCount})</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-surface border border-border" />
-                <span>Unanswered ({unansweredCount})</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-brand-gold" />
-                <span>Flagged ({Object.values(flagged).filter(Boolean).length})</span>
-              </div>
-            </div>
+          <div className="bg-brand-bg-alt/70 p-4 rounded-card border border-border text-caption text-text-secondary space-y-1.5">
+            <span className="font-bold text-brand-navy block">Offline Resilience Active:</span>
+            <p>Answers are saved in your browser session after each click. Network drops will not lose your progress.</p>
           </div>
         </div>
       </div>
 
-      {/* Confirmation Dialog */}
+      {/* Confirmation Dialog before Final Submission */}
       <ConfirmationDialog
         isOpen={isConfirmOpen}
         title={t('exam.confirmSubmit.title')}
@@ -307,11 +329,10 @@ export function ActiveExamPage() {
         }
         confirmLabel={t('exam.confirm')}
         cancelLabel={t('exam.cancel')}
-        onConfirm={handleSubmitFinal}
+        onConfirm={handleSubmitAttempt}
         onCancel={() => setIsConfirmOpen(false)}
         isDestructive={unansweredCount > 0}
       />
     </div>
   );
 }
-
