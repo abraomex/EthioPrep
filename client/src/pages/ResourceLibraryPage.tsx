@@ -2,102 +2,152 @@ import { useState } from 'react';
 import { useLanguage } from '../lib/i18n';
 import { Input } from '../components/ui/Input';
 import { AccessBadge } from '../components/ui/AccessBadge';
+import { EmptyState } from '../components/ui/EmptyState';
+import { mockResources } from '../lib/mockData';
 
 export function ResourceLibraryPage() {
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedStream, setSelectedStream] = useState<string>('all');
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
-  const sampleResources = [
-    {
-      id: 'res-1',
-      titleEn: 'Grade 12 Mathematics Formula Sheet (Summary)',
-      titleAm: 'የ12ኛ ክፍል የሒሳብ ቀመሮች ማጠቃለያ ወረቀት',
-      subject: 'Mathematics',
-      type: 'PDF',
-      license: 'Public Educational Material (MoE Ethiopia Reference)',
-      tier: 'free' as const,
-    },
-    {
-      id: 'res-2',
-      titleEn: 'Physics Mechanics & Thermodynamics Quick Guide',
-      titleAm: 'የፊዚክስ ሜካኒክስ እና ቴርሞዳይናሚክስ አጭር መመሪያ',
-      subject: 'Physics',
-      type: 'PDF',
-      license: 'EthioPrep Open Educational Resource',
-      tier: 'free' as const,
-    },
-    {
-      id: 'res-3',
-      titleEn: 'Chemistry Common Organic Reaction Mechanisms',
-      titleAm: 'የኬሚስትሪ የተለመዱ የኦርጋኒክ ምላሾች መመሪያ',
-      subject: 'Chemistry',
-      type: 'PDF',
-      license: 'EthioPrep Open Educational Resource',
-      tier: 'premium' as const,
-    },
-    {
-      id: 'res-4',
-      titleEn: 'Grade 12 English Grammar & Vocabulary Pocket Guide',
-      titleAm: 'የ12ኛ ክፍል እንግሊዝኛ ሰዋሰው እና የቃላት አጠቃቀም መመሪያ',
-      subject: 'English',
-      type: 'PDF',
-      license: 'Open Access',
-      tier: 'free' as const,
-    },
-  ];
+  const filteredResources = mockResources.filter((res) => {
+    const matchesStream = selectedStream === 'all' || res.stream === selectedStream;
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return matchesStream;
 
-  const filtered = sampleResources.filter((r) => {
-    const title = language === 'am' ? r.titleAm : r.titleEn;
-    return title.toLowerCase().includes(searchQuery.toLowerCase()) || r.subject.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesEn = res.titleEn.toLowerCase().includes(query) || res.licenseNote.toLowerCase().includes(query);
+    const matchesAm = res.titleAm.includes(query);
+    return matchesStream && (matchesEn || matchesAm);
   });
 
+  const handleDownload = (id: string, title: string) => {
+    setDownloadingId(id);
+    setTimeout(() => {
+      setDownloadingId(null);
+      alert(`[Demo Download] Successfully downloaded:\n"${title}"\nFile is ready for offline study.`);
+    }, 800);
+  };
+
   return (
-    <div className="max-w-[1000px] mx-auto px-4 py-8">
+    <div className="max-w-[1000px] mx-auto px-4 py-8 md:py-12">
+      {/* Page Header */}
       <div className="mb-8">
-        <h1 className="text-h1 font-bold text-text-primary mb-2">Resource Library</h1>
-        <p className="text-body text-text-secondary">
-          Downloadable formula sheets, study guides, and verified curriculum references.
+        <span className="text-caption font-bold text-brand-teal uppercase tracking-wider">
+          Study Materials &amp; Downloads
+        </span>
+        <h1 className="text-h1 font-bold text-brand-navy mt-1 mb-2">
+          {t('nav.resources')}
+        </h1>
+        <p className="text-body text-text-secondary max-w-2xl leading-relaxed">
+          {language === 'am'
+            ? 'ለ12ኛ ክፍል ብሔራዊ ፈተና የሚረዱ የሒሳብ ቀመሮች፣ የፊዚክስና ኬሚስትሪ ማጠቃለያዎች እና የታሪክ ሰንጠረዦች። በነጻ ያውርዱ።'
+            : 'Downloadable formula sheets, chapter summaries, and verified Grade 12 references to support low-bandwidth offline study.'}
         </p>
       </div>
 
-      <div className="mb-6 max-w-sm">
-        <Input
-          id="res-search"
-          label=""
-          placeholder="Search resources..."
-          value={searchQuery}
-          onChange={setSearchQuery}
-          leftIcon={<span>🔍</span>}
-        />
+      {/* Search and Stream Filter */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 mb-8 bg-surface p-4 rounded-card border border-border shadow-card">
+        <div className="w-full sm:max-w-xs">
+          <Input
+            id="resource-search"
+            type="search"
+            label=""
+            placeholder={language === 'am' ? 'ግብዓቶችን ይፈልጉ...' : 'Search formula sheets, notes...'}
+            value={searchQuery}
+            onChange={setSearchQuery}
+            leftIcon={<span>🔍</span>}
+          />
+        </div>
+
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+          {[
+            { id: 'all', label: 'All Resources' },
+            { id: 'natural_science', label: '🔬 Natural Science' },
+            { id: 'social_science', label: '🏛️ Social Science' },
+            { id: 'common', label: '📖 Common' },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setSelectedStream(tab.id)}
+              className={`
+                px-3 py-1.5 rounded-button text-body-sm font-semibold whitespace-nowrap transition-colors cursor-pointer
+                ${selectedStream === tab.id
+                  ? 'bg-brand-navy text-white shadow-sm'
+                  : 'bg-surface-muted text-text-secondary hover:bg-brand-bg hover:text-text-primary border border-border'
+                }
+              `.trim()}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div className="space-y-4">
-        {filtered.map((item) => (
-          <div
-            key={item.id}
-            className="p-5 rounded-card bg-surface border border-border shadow-card flex flex-col sm:flex-row sm:items-center justify-between gap-4"
-          >
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-caption font-bold text-brand-teal uppercase">{item.subject}</span>
-                <span className="text-caption px-2 py-0.5 rounded bg-brand-bg text-text-muted">{item.type}</span>
-                <AccessBadge tier={item.tier} />
-              </div>
-              <h3 className="font-bold text-body text-brand-navy">
-                {language === 'am' ? item.titleAm : item.titleEn}
-              </h3>
-              <p className="text-caption text-text-muted mt-1">{item.license}</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => alert(`Download started for: ${item.titleEn}`)}
-              className="px-4 py-2 rounded-button bg-brand-navy text-white text-body-sm font-semibold hover:bg-brand-navy-light transition-colors self-start sm:self-auto cursor-pointer"
+      {/* Resource List or Empty State */}
+      {filteredResources.length === 0 ? (
+        <EmptyState
+          icon="search"
+          title="No Resources Found"
+          description={`No study guides or formula sheets matched "${searchQuery}".`}
+          action={{
+            label: "Reset Filters",
+            onClick: () => {
+              setSearchQuery('');
+              setSelectedStream('all');
+            },
+          }}
+        />
+      ) : (
+        <div className="space-y-4">
+          {filteredResources.map((item) => (
+            <div
+              key={item.id}
+              className="p-5 sm:p-6 rounded-card bg-surface border border-border shadow-card hover:shadow-card-hover transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4"
             >
-              Download
-            </button>
-          </div>
-        ))}
-      </div>
+              <div className="space-y-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-caption font-bold px-2 py-0.5 rounded bg-brand-navy/10 text-brand-navy">
+                    {item.format} • {item.fileSize}
+                  </span>
+                  <AccessBadge tier={item.accessTier} size="sm" />
+                  <span className="text-caption text-text-muted">
+                    {item.downloadsCount.toLocaleString()} downloads
+                  </span>
+                </div>
+
+                <h3 className="font-bold text-body sm:text-h3 text-brand-navy">
+                  {language === 'am' ? item.titleAm : item.titleEn}
+                </h3>
+
+                <p className="text-caption text-text-muted flex items-center gap-1.5">
+                  <span>📜</span>
+                  <span>{item.licenseNote}</span>
+                </p>
+              </div>
+
+              <div className="shrink-0 self-start sm:self-center">
+                <button
+                  type="button"
+                  disabled={downloadingId === item.id}
+                  onClick={() => handleDownload(item.id, language === 'am' ? item.titleAm : item.titleEn)}
+                  className={`
+                    px-5 py-2.5 rounded-button text-body-sm font-bold flex items-center gap-2 transition-all cursor-pointer
+                    ${downloadingId === item.id
+                      ? 'bg-brand-teal/50 text-white cursor-wait'
+                      : 'bg-brand-teal hover:bg-brand-teal-light text-white shadow-sm'
+                    }
+                  `.trim()}
+                >
+                  <span>⬇</span>
+                  <span>{downloadingId === item.id ? 'Downloading...' : 'Download PDF'}</span>
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
