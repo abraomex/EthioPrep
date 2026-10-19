@@ -1,5 +1,7 @@
 import { createBrowserRouter } from 'react-router-dom';
 import { PublicLayout, DashboardLayout, ExamLayout, AdminLayout } from '../components/layout';
+import { AdminRoute } from '../components/layout/AdminRoute';
+import { ProtectedRoute } from '../components/layout/ProtectedRoute';
 
 // Public pages
 import { HomePage } from '../pages/HomePage';
@@ -52,34 +54,48 @@ export const router = createBrowserRouter([
 
   // Student Dashboard Protected Routes (Header + Sidebar + Content + MobileNav)
   {
-    element: <DashboardLayout />,
+    element: <ProtectedRoute />,
     children: [
-      { path: '/dashboard', element: <DashboardPage /> },
-      { path: '/bookmarks', element: <BookmarksPage /> },
-      { path: '/history', element: <HistoryPage /> },
-      { path: '/profile', element: <ProfilePage /> },
+      {
+        element: <DashboardLayout />,
+        children: [
+          { path: '/dashboard', element: <DashboardPage /> },
+          { path: '/bookmarks', element: <BookmarksPage /> },
+          { path: '/history', element: <HistoryPage /> },
+          { path: '/profile', element: <ProfilePage /> },
+        ],
+      },
     ],
   },
 
   // Active Exam Immersive Route (Zero navigation, full focus)
   {
-    element: <ExamLayout />,
+    element: <ProtectedRoute />,
     children: [
-      { path: '/exams/:id/attempt', element: <ActiveExamPage /> },
+      {
+        element: <ExamLayout />,
+        children: [
+          { path: '/exams/:id/attempt', element: <ActiveExamPage /> },
+        ],
+      },
     ],
   },
 
   // Admin CMS Protected Routes (Admin Header + Admin Sidebar)
   {
-    element: <AdminLayout />,
+    element: <AdminRoute />,
     children: [
-      { path: '/admin', element: <AdminOverviewPage /> },
-      { path: '/admin/subjects', element: <AdminSubjectsPage /> },
-      { path: '/admin/lessons', element: <AdminLessonsPage /> },
-      { path: '/admin/questions', element: <AdminQuestionsPage /> },
-      { path: '/admin/exams', element: <AdminExamsPage /> },
-      { path: '/admin/resources', element: <AdminResourcesPage /> },
+      {
+        element: <AdminLayout />,
+        children: [
+          { path: '/admin', element: <AdminOverviewPage /> },
+          { path: '/admin/subjects', element: <AdminSubjectsPage /> },
+          { path: '/admin/lessons', element: <AdminLessonsPage /> },
+          { path: '/admin/questions', element: <AdminQuestionsPage /> },
+          { path: '/admin/exams', element: <AdminExamsPage /> },
+          { path: '/admin/resources', element: <AdminResourcesPage /> },
+        ],
+      },
     ],
   },
 ]);
-

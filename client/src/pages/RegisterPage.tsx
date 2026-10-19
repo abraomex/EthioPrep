@@ -9,7 +9,7 @@ import type { Stream } from '../../../shared/types';
 
 export function RegisterPage() {
   const { t } = useLanguage();
-  const { login, updateStream } = useAuth();
+  const { register } = useAuth();
   const navigate = useNavigate();
 
   const [displayName, setDisplayName] = useState('');
@@ -23,15 +23,29 @@ export function RegisterPage() {
     { value: 'social_science', labelEn: 'Social Science (ማህበራዊ ሳይንስ)', labelAm: 'ማህበራዊ ሳይንስ' },
   ];
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!displayName || !email || !password) {
       setError('Please fill in all required fields.');
       return;
     }
-    login(email, 'student');
-    updateStream(stream);
-    navigate('/dashboard');
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters long.');
+      return;
+    }
+    try {
+      setError('');
+      await register({
+        displayName,
+        email,
+        password,
+        stream,
+        preferredLanguage: 'en',
+      });
+      navigate('/dashboard');
+    } catch (err: any) {
+      setError(err.message || 'Registration failed. Please try again.');
+    }
   };
 
   return (

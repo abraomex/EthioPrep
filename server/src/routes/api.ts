@@ -4,6 +4,7 @@ import subjectRoutes from './subjectRoutes';
 import lessonRoutes from './lessonRoutes';
 import examRoutes from './examRoutes';
 import attemptRoutes from './attemptRoutes';
+import adminRoutes from './adminRoutes';
 
 const router = Router();
 
@@ -23,5 +24,6 @@ router.use('/subjects', subjectRoutes);
 router.use('/lessons', lessonRoutes);
 router.use('/exams', examRoutes);
 router.use('/attempts', attemptRoutes);
+router.use('/admin', adminRoutes);
 
 export default router;
