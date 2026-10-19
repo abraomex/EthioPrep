@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import apiRouter from './routes/api';
 import { errorHandler } from './middleware/errorHandler';
+import { authenticate } from './middleware/auth';
 
 export function createApp(): Application {
   const app = express();
@@ -26,6 +27,9 @@ export function createApp(): Application {
   app.use(express.json({ limit: '2mb' }));
   app.use(express.urlencoded({ extended: true, limit: '2mb' }));
   app.use(cookieParser());
+
+  // Global Session Authentication (populates req.user if session cookie or bearer token exists)
+  app.use(authenticate);
 
   // Mount API v1
   app.use('/api/v1', apiRouter);

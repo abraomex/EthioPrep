@@ -1,21 +1,29 @@
 import type { Request, Response, NextFunction } from 'express';
-import type { AnyZodObject } from 'zod';
+import { ZodType, type AnyZodObject, type ZodTypeAny } from 'zod';
 
-export function validate(schema: {
-  body?: AnyZodObject;
-  query?: AnyZodObject;
-  params?: AnyZodObject;
-}) {
+export type ValidationTarget = {
+  body?: AnyZodObject | ZodTypeAny;
+  query?: AnyZodObject | ZodTypeAny;
+  params?: AnyZodObject | ZodTypeAny;
+};
+
+export function validate(schema: ValidationTarget | AnyZodObject | ZodTypeAny) {
   return async (req: Request, _res: Response, next: NextFunction) => {
     try {
-      if (schema.body) {
-        req.body = await schema.body.parseAsync(req.body);
+      if (schema instanceof ZodType) {
+        req.body = await schema.parseAsync(req.body);
+        return next();
       }
-      if (schema.query) {
-        req.query = await schema.query.parseAsync(req.query);
+
+      const target = schema as ValidationTarget;
+      if (target.body) {
+        req.body = await target.body.parseAsync(req.body);
       }
-      if (schema.params) {
-        req.params = await schema.params.parseAsync(req.params);
+      if (target.query) {
+        req.query = await target.query.parseAsync(req.query);
+      }
+      if (target.params) {
+        req.params = await target.params.parseAsync(req.params);
       }
       next();
     } catch (error) {
@@ -23,4 +31,3 @@ export function validate(schema: {
     }
   };
 }
-
