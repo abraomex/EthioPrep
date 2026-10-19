@@ -9,3 +9,4 @@ dist-ssr/
 !.vscode/extensions.json
 .idea
 
+client/src/resources/*.pdf
