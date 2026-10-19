@@ -53,54 +53,123 @@ async function main() {
 
   console.log(`👤 Users seeded: Student (${student.email}), Admin (${admin.email})`);
 
-  // 3. Seed Subjects
-  const mathSubject = await prisma.subject.create({
-    data: {
+  // 3. Seed 10 Official New Curriculum Subjects (English Medium)
+  const subjectsData = [
+    {
       slug: 'mathematics',
-      stream: 'natural_science',
+      stream: 'natural_science' as const,
       titleEn: 'Mathematics',
-      titleAm: 'ሒሳብ',
-      descriptionEn: 'Differential and integral calculus, 3D coordinate geometry, vectors, and mathematical induction for Ethiopian Grade 12.',
-      descriptionAm: 'የ12ኛ ክፍል ዲፈረንሻልና ኢንቴግራል ካልኩለስ፣ የ3ዲ ኮኦርዲኔት ጂኦሜትሪ፣ ቬክተሮች እና ስታቲስቲክስ።',
+      titleAm: 'Mathematics',
+      descriptionEn: 'Grade 12 Mathematics — Sequence & Series, Introduction to Calculus, Statistics, Linear Programming, and Business Applications.',
+      descriptionAm: 'Grade 12 Mathematics — Sequence & Series, Introduction to Calculus, Statistics, Linear Programming, and Business Applications.',
       sortOrder: 1,
       published: true,
     },
-  });
-
-  const physicsSubject = await prisma.subject.create({
-    data: {
+    {
       slug: 'physics',
-      stream: 'natural_science',
+      stream: 'natural_science' as const,
       titleEn: 'Physics',
-      titleAm: 'ፊዚክስ',
-      descriptionEn: 'Rigid body rotation, mechanics, thermodynamics, oscillations, electromagnetic induction, and modern atomic physics.',
-      descriptionAm: 'የ12ኛ ክፍል ቋሚ አካላት ሽክርክሪት፣ ሜካኒክስ፣ ቴርሞዳይናሚክስ፣ ኤሌክትሮማግኔቲክ ኢንዳክሽን እና አቶሚክ ፊዚክስ።',
+      titleAm: 'Physics',
+      descriptionEn: 'Grade 12 Physics — Application in Other Fields, Two-Dimensional Motion, Fluid Mechanics, Electromagnetism, and Basics of Electronics.',
+      descriptionAm: 'Grade 12 Physics — Application in Other Fields, Two-Dimensional Motion, Fluid Mechanics, Electromagnetism, and Basics of Electronics.',
       sortOrder: 2,
       published: true,
     },
-  });
-
-  const econSubject = await prisma.subject.create({
-    data: {
-      slug: 'economics',
-      stream: 'social_science',
-      titleEn: 'Economics',
-      titleAm: 'ኢኮኖሚክስ',
-      descriptionEn: 'National income accounting, aggregate demand and supply, fiscal and monetary policy, inflation, and Ethiopian development plans.',
-      descriptionAm: 'የ12ኛ ክፍል የብሔራዊ ገቢ ስሌት፣ የገንዘብና የፊሲካል ፖሊሲ፣ የዋጋ ግሽበት እና የኢትዮጵያ የልማት እቅዶች።',
+    {
+      slug: 'chemistry',
+      stream: 'natural_science' as const,
+      titleEn: 'Chemistry',
+      titleAm: 'Chemistry',
+      descriptionEn: 'Grade 12 Chemistry — Acid-Base Equilibria, Electrochemistry, Industrial Chemistry in Ethiopia, Polymers, and Environmental Chemistry.',
+      descriptionAm: 'Grade 12 Chemistry — Acid-Base Equilibria, Electrochemistry, Industrial Chemistry in Ethiopia, Polymers, and Environmental Chemistry.',
       sortOrder: 3,
       published: true,
     },
-  });
+    {
+      slug: 'biology',
+      stream: 'natural_science' as const,
+      titleEn: 'Biology',
+      titleAm: 'Biology',
+      descriptionEn: 'Grade 12 Biology — Application of Biology, Microorganisms, Energy Transformation, Evolution, Human Body Systems, and Climate Change.',
+      descriptionAm: 'Grade 12 Biology — Application of Biology, Microorganisms, Energy Transformation, Evolution, Human Body Systems, and Climate Change.',
+      sortOrder: 4,
+      published: true,
+    },
+    {
+      slug: 'english',
+      stream: 'common' as const,
+      titleEn: 'English',
+      titleAm: 'English',
+      descriptionEn: 'Grade 12 English — Academic Reading, Advanced Grammar, Lexical Studies, Essay Writing, and Communication Skills.',
+      descriptionAm: 'Grade 12 English — Academic Reading, Advanced Grammar, Lexical Studies, Essay Writing, and Communication Skills.',
+      sortOrder: 5,
+      published: true,
+    },
+    {
+      slug: 'history',
+      stream: 'social_science' as const,
+      titleEn: 'History',
+      titleAm: 'History',
+      descriptionEn: 'Grade 12 History — Capitalism & Nationalism (1815-1914), Colonial Africa, Modern Ethiopia to 1941, World Wars, Cold War, and Derg Era.',
+      descriptionAm: 'Grade 12 History — Capitalism & Nationalism (1815-1914), Colonial Africa, Modern Ethiopia to 1941, World Wars, Cold War, and Derg Era.',
+      sortOrder: 6,
+      published: true,
+    },
+    {
+      slug: 'geography',
+      stream: 'social_science' as const,
+      titleEn: 'Geography',
+      titleAm: 'Geography',
+      descriptionEn: 'Grade 12 Geography — Plate Tectonics, Climate Change & CRGE, Sustainable Resource Management, Population Policies, and GIS Map Making.',
+      descriptionAm: 'Grade 12 Geography — Plate Tectonics, Climate Change & CRGE, Sustainable Resource Management, Population Policies, and GIS Map Making.',
+      sortOrder: 7,
+      published: true,
+    },
+    {
+      slug: 'economics',
+      stream: 'social_science' as const,
+      titleEn: 'Economics',
+      titleAm: 'Economics',
+      descriptionEn: 'Grade 12 Economics — Macroeconomic Concepts, AD-AS Equilibrium, Market Failure, Fiscal & Monetary Policies, Taxes, and Poverty.',
+      descriptionAm: 'Grade 12 Economics — Macroeconomic Concepts, AD-AS Equilibrium, Market Failure, Fiscal & Monetary Policies, Taxes, and Poverty.',
+      sortOrder: 8,
+      published: true,
+    },
+    {
+      slug: 'information-technology',
+      stream: 'natural_science' as const,
+      titleEn: 'Information Technology',
+      titleAm: 'Information Technology',
+      descriptionEn: 'Grade 12 Information Technology — Ethics & Legal Issues, Emerging Tech (Cloud/IoT/Big Data), RDBMS & SQL, XML Web Authoring, and Python.',
+      descriptionAm: 'Grade 12 Information Technology — Ethics & Legal Issues, Emerging Tech (Cloud/IoT/Big Data), RDBMS & SQL, XML Web Authoring, and Python.',
+      sortOrder: 9,
+      published: true,
+    },
+    {
+      slug: 'agriculture',
+      stream: 'natural_science' as const,
+      titleEn: 'Agriculture',
+      titleAm: 'Agriculture',
+      descriptionEn: 'Grade 12 Agriculture — Horticultural Crops, Cash Crops, Plant Biotechnology, Livestock Husbandry, Apiculture, Soil Conservation, and Ag-ICT.',
+      descriptionAm: 'Grade 12 Agriculture — Horticultural Crops, Cash Crops, Plant Biotechnology, Livestock Husbandry, Apiculture, Soil Conservation, and Ag-ICT.',
+      sortOrder: 10,
+      published: true,
+    },
+  ];
 
-  console.log('📚 Subjects seeded: Mathematics, Physics, Economics');
+  const createdSubjects: Record<string, any> = {};
+  for (const s of subjectsData) {
+    createdSubjects[s.slug] = await prisma.subject.create({ data: s });
+  }
+
+  console.log('📚 All 10 Subjects seeded successfully.');
 
   // 4. Seed Topics & Chapters for Mathematics
   const mathChapter1 = await prisma.topic.create({
     data: {
-      subjectId: mathSubject.id,
-      titleEn: 'Chapter 1: Sequences and Series',
-      titleAm: 'ምዕራፍ 1፡ ዝርዝሮች እና ድምሮች',
+      subjectId: createdSubjects['mathematics'].id,
+      titleEn: 'Unit 1: Sequence and Series',
+      titleAm: 'Unit 1: Sequence and Series',
       sortOrder: 1,
       published: true,
     },
@@ -108,22 +177,22 @@ async function main() {
 
   const mathChapter2 = await prisma.topic.create({
     data: {
-      subjectId: mathSubject.id,
-      titleEn: 'Chapter 2: Limits and Continuity',
-      titleAm: 'ምዕራፍ 2፡ ሊሚት እና ቀጣይነት',
+      subjectId: createdSubjects['mathematics'].id,
+      titleEn: 'Unit 2: Introduction to Calculus',
+      titleAm: 'Unit 2: Introduction to Calculus',
       sortOrder: 2,
       published: true,
     },
   });
 
-  // 5. Seed Lessons for Math Chapter 2 (Limits)
+  // 5. Seed Lessons for Math Chapter 2 (Limits & Calculus)
   const lesson1 = await prisma.lesson.create({
     data: {
       topicId: mathChapter2.id,
       titleEn: '2.1 Definition of Limits and Direct Evaluation',
-      titleAm: '2.1 የሊሚት ትርጉም እና ቀጥተኛ ስሌት',
+      titleAm: '2.1 Definition of Limits and Direct Evaluation',
       bodyEn: '# Definition of Limits\n\nA limit describes the value a function approaches...\n$$\\lim_{x \\to a} f(x) = L$$',
-      bodyAm: '# የሊሚት ትርጉም\n\nሊሚት አንድ ፋንክሽን ወደ አንድ ነጥብ ሲጠጋ የሚኖረውን እሴት ያሳያል...\n$$\\lim_{x \\to a} f(x) = L$$',
+      bodyAm: '',
       status: 'published',
       accessTier: 'free',
       estimatedMinutes: 10,
@@ -134,10 +203,10 @@ async function main() {
   await prisma.lesson.create({
     data: {
       topicId: mathChapter2.id,
-      titleEn: '2.2 Advanced Limit Laws and Asymptotes',
-      titleAm: '2.2 የሊሚት ህጎችና አሲምፕቶቶች',
+      titleEn: '2.2 Advanced Limit Laws and Discontinuities',
+      titleAm: '2.2 Advanced Limit Laws and Discontinuities',
       bodyEn: '# Advanced Limit Laws\n\nEvaluating limits at infinity and rational functions.',
-      bodyAm: '# የላቁ የሊሚት ህጎች\n\nሊሚት ወደ ማለቂያ አልባ እና የረቂቅ ፋንክሽኖች ስሌት።',
+      bodyAm: '',
       status: 'published',
       accessTier: 'premium',
       estimatedMinutes: 14,
@@ -152,9 +221,9 @@ async function main() {
     data: {
       topicId: mathChapter2.id,
       promptEn: 'What is the value of $\\lim_{x \\to 3} \\frac{x^2 - 9}{x - 3}$?',
-      promptAm: 'የ $\\lim_{x \\to 3} \\frac{x^2 - 9}{x - 3}$ እሴት ስንት ነው?',
+      promptAm: '',
       explanationEn: 'Factoring gives $(x - 3)(x + 3)/(x - 3) = x + 3$. Evaluating at $x = 3$ gives $3 + 3 = 6$.',
-      explanationAm: 'የሁለት ስኩዌሮች ልዩነትን ማበጠር፡ $(x - 3)(x + 3)/(x - 3) = x + 3$። በ $x = 3$ ሲተካ 6 ይመጣል።',
+      explanationAm: 'Factoring gives $(x - 3)(x + 3)/(x - 3) = x + 3$. Evaluating at $x = 3$ gives $3 + 3 = 6$.',
       difficulty: 'easy',
       status: 'published',
       options: {
@@ -162,49 +231,28 @@ async function main() {
           { label: 'A', textEn: '0', textAm: '0', sortOrder: 1, isCorrect: false },
           { label: 'B', textEn: '3', textAm: '3', sortOrder: 2, isCorrect: false },
           { label: 'C', textEn: '6', textAm: '6', sortOrder: 3, isCorrect: true },
-          { label: 'D', textEn: 'Does not exist', textAm: 'አይኖርም', sortOrder: 4, isCorrect: false },
+          { label: 'D', textEn: 'Does not exist', textAm: 'Does not exist', sortOrder: 4, isCorrect: false },
         ],
       },
     },
   });
 
-  const question2 = await prisma.question.create({
-    data: {
-      topicId: mathChapter2.id,
-      promptEn: 'What is the value of $\\lim_{x \\to 0} \\frac{\\sin x}{x}$?',
-      promptAm: 'የ $\\lim_{x \\to 0} \\frac{\\sin x}{x}$ እሴት ስንት ነው?',
-      explanationEn: 'Fundamental trigonometric limit theorem states $\\lim_{x \\to 0} \\frac{\\sin x}{x} = 1$.',
-      explanationAm: 'መሰረታዊ የትሪጎኖሜትሪ ሊሚት ቴዎረም $\\lim_{x \\to 0} \\frac{\\sin x}{x} = 1$ ነው።',
-      difficulty: 'medium',
-      status: 'published',
-      options: {
-        create: [
-          { label: 'A', textEn: '0', textAm: '0', sortOrder: 1, isCorrect: false },
-          { label: 'B', textEn: '1', textAm: '1', sortOrder: 2, isCorrect: true },
-          { label: 'C', textEn: 'Infinity', textAm: 'ማለቂያ የሌለው', sortOrder: 3, isCorrect: false },
-          { label: 'D', textEn: 'Undefined', textAm: 'ያልተተረጎመ', sortOrder: 4, isCorrect: false },
-        ],
-      },
-    },
-  });
-
-  console.log('❓ Questions seeded with options and bilingual explanations');
+  console.log('❓ Questions seeded with options and explanations');
 
   // 7. Seed Mock Exam
   const exam = await prisma.exam.create({
     data: {
-      subjectId: mathSubject.id,
-      titleEn: 'Grade 12 Mathematics National Mock Examination 1',
-      titleAm: 'የ12ኛ ክፍል ሒሳብ ብሔራዊ ሞዴል ፈተና 1',
+      subjectId: createdSubjects['mathematics'].id,
+      titleEn: 'Grade 12 Mathematics National Mock Examination',
+      titleAm: 'Grade 12 Mathematics National Practice Examination',
       descriptionEn: 'Standard timed examination simulating the Ethiopian Grade 12 National Assessment.',
-      descriptionAm: 'የኢትዮጵያ የ12ኛ ክፍል ብሔራዊ ፈተናን የሚመስል የጊዜ ሞዴል ፈተና።',
-      durationSeconds: 5400, // 90 min
+      descriptionAm: 'Standard timed examination simulating the Ethiopian Grade 12 National Assessment.',
+      durationSeconds: 9000, // 150 min
       accessTier: 'free',
       status: 'published',
       examQuestions: {
         create: [
           { questionId: question1.id, sortOrder: 1, points: 1 },
-          { questionId: question2.id, sortOrder: 2, points: 1 },
         ],
       },
     },
@@ -212,15 +260,28 @@ async function main() {
 
   console.log(`📝 Exam seeded: ${exam.titleEn}`);
 
-  // 8. Seed Downloadable Resource
+  // 8. Seed Downloadable Textbooks Resources
   await prisma.resource.create({
     data: {
-      subjectId: mathSubject.id,
-      titleEn: 'Grade 12 Mathematics Complete Formula Sheet & Summary',
-      titleAm: 'የ12ኛ ክፍል የሒሳብ ቀመሮችና ፈጣን ማጠቃለያዎች',
+      subjectId: createdSubjects['chemistry'].id,
+      titleEn: 'Grade 12 Chemistry Student Textbook (New Curriculum - MoE Ethiopia)',
+      titleAm: 'Grade 12 Chemistry Student Textbook (New Curriculum - MoE Ethiopia)',
       resourceType: 'pdf',
-      url: '/downloads/math-grade-12-formulas.pdf',
-      licenseNote: 'EthioPrep Open Educational Resource — Free for all Ethiopian students',
+      url: '/src/resources/grade-12-chemistry-new-curriculum--student-textbook-kehulumcom1759915918b6bd.pdf',
+      licenseNote: 'Ministry of Education Ethiopia — Free Student Access',
+      accessTier: 'free',
+      published: true,
+    },
+  });
+
+  await prisma.resource.create({
+    data: {
+      subjectId: createdSubjects['physics'].id,
+      titleEn: 'Grade 12 Physics Student Textbook (New Curriculum - MoE Ethiopia)',
+      titleAm: 'Grade 12 Physics Student Textbook (New Curriculum - MoE Ethiopia)',
+      resourceType: 'pdf',
+      url: '/src/resources/grade-12-physics-new-curriculum--student-textbook-kehulumcom1759910068aff6.pdf',
+      licenseNote: 'Ministry of Education Ethiopia — Free Student Access',
       accessTier: 'free',
       published: true,
     },
@@ -238,4 +299,3 @@ main()
   .finally(async () => {
     await prisma.$disconnect();
   });
-
