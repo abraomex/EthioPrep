@@ -7,6 +7,7 @@ import { QuestionOption } from '../components/exam/QuestionOption';
 import { QuestionNavigator } from '../components/exam/QuestionNavigator';
 import { ConfirmationDialog } from '../components/ui/ConfirmationDialog';
 import { mockExams } from '../lib/mockExams';
+import { apiClient } from '../lib/apiClient';
 
 export function ActiveExamPage() {
   const { id } = useParams();
@@ -104,10 +105,20 @@ export function ActiveExamPage() {
   const unansweredCount = exam.questions.length - answeredIndices.size;
 
   const handleSelectOption = (optionId: string) => {
-    setAnswers((prev) => ({
-      ...prev,
+    const updatedAnswers = {
+      ...answers,
       [currentQ.id]: optionId,
+    };
+    setAnswers(updatedAnswers);
+
+    // Sync draft answer buffer to server in background
+    const formatted = Object.entries(updatedAnswers).map(([questionId, selectedOptionId]) => ({
+      questionId,
+      selectedOptionId: selectedOptionId || null,
     }));
+    apiClient.attempts.saveDraftAnswers(exam.id, formatted).catch(() => {
+      // Offline fallback: sessionStorage holds state
+    });
   };
 
   const handleToggleFlag = () => {
@@ -117,10 +128,16 @@ export function ActiveExamPage() {
     }));
   };
 
-  const handleSubmitAttempt = useCallback(() => {
+  const handleSubmitAttempt = useCallback(async () => {
     setIsConfirmOpen(false);
 
-    // Calculate score
+    // Format answers for server submission
+    const formatted = exam.questions.map((q) => ({
+      questionId: q.id,
+      selectedOptionId: answers[q.id] || null,
+    }));
+
+    // Calculate fallback local score
     let totalScore = 0;
     const reviewDetails = exam.questions.map((q, idx) => {
       const selectedId = answers[q.id];
@@ -162,8 +179,15 @@ export function ActiveExamPage() {
     };
 
     try {
+      // Submit to backend
+      await apiClient.attempts.submit(exam.id, formatted);
+    } catch {
+      // Offline fallback: continue with local result
+    }
+
+    try {
       sessionStorage.setItem('ethioprep_latest_result', JSON.stringify(resultPayload));
-      // Clean up in-progress answers
+      // Clean up in-progress answers buffer on successful submission
       sessionStorage.removeItem(storageAnswersKey);
       sessionStorage.removeItem(storageFlagsKey);
       sessionStorage.removeItem(storageTimeKey);

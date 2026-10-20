@@ -1,93 +1,110 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-import type { User, UserRole, Stream, Language } from '../../../../shared/types';
+import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
+import { apiClient, type ApiUser } from '../apiClient';
+import type { Stream, Language } from '../../../../shared/types';
 
 interface AuthContextType {
-  user: User | null;
+  user: ApiUser | null;
+  isLoading: boolean;
   isAuthenticated: boolean;
   isAdmin: boolean;
-  login: (email: string, role?: UserRole) => void;
-  logout: () => void;
+  login: (email: string, password: string) => Promise<ApiUser>;
+  register: (data: {
+    email: string;
+    password: string;
+    displayName: string;
+    stream: Stream;
+    preferredLanguage: Language;
+  }) => Promise<ApiUser>;
+  logout: () => Promise<void>;
+  refreshUser: () => Promise<void>;
   updateStream: (stream: Stream) => void;
-  updateLanguage: (lang: Language) => void;
   upgradeToPremium: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const STORAGE_AUTH_KEY = 'ethioprep_mock_user';
-
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(() => {
-    if (typeof window === 'undefined') return null;
-    const stored = localStorage.getItem(STORAGE_AUTH_KEY);
-    if (!stored) return null;
+  const [user, setUser] = useState<ApiUser | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+
+  const refreshUser = useCallback(async () => {
     try {
-      return JSON.parse(stored);
+      const currentUser = await apiClient.auth.getMe();
+      setUser(currentUser);
     } catch {
-      return null;
+      setUser(null);
+    } finally {
+      setIsLoading(false);
     }
-  });
+  }, []);
 
   useEffect(() => {
-    if (user) {
-      localStorage.setItem(STORAGE_AUTH_KEY, JSON.stringify(user));
-    } else {
-      localStorage.removeItem(STORAGE_AUTH_KEY);
+    refreshUser();
+  }, [refreshUser]);
+
+  const login = useCallback(async (email: string, password: string): Promise<ApiUser> => {
+    setIsLoading(true);
+    try {
+      const result = await apiClient.auth.login({ email, password });
+      setUser(result.user);
+      return result.user;
+    } finally {
+      setIsLoading(false);
     }
-  }, [user]);
+  }, []);
 
-  const login = (email: string, role: UserRole = 'student') => {
-    const newUser: User = {
-      id: 'demo-user-1',
-      email,
-      displayName: email.split('@')[0] || 'Demo Student',
-      role,
-      stream: 'natural_science',
-      preferredLanguage: 'en',
-      accessTier: 'free',
-      createdAt: new Date().toISOString(),
-    };
-    setUser(newUser);
-  };
-
-  const logout = () => {
-    setUser(null);
-  };
-
-  const updateStream = (stream: Stream) => {
-    if (user) {
-      setUser({ ...user, stream });
-    }
-  };
-
-  const updateLanguage = (preferredLanguage: Language) => {
-    if (user) {
-      setUser({ ...user, preferredLanguage });
-    }
-  };
-
-  const upgradeToPremium = () => {
-    if (user) {
-      setUser({ ...user, accessTier: 'premium' });
-    }
-  };
-
-  return (
-    <AuthContext.Provider
-      value={{
-        user,
-        isAuthenticated: !!user,
-        isAdmin: user?.role === 'admin',
-        login,
-        logout,
-        updateStream,
-        updateLanguage,
-        upgradeToPremium,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
+  const register = useCallback(
+    async (data: {
+      email: string;
+      password: string;
+      displayName: string;
+      stream: Stream;
+      preferredLanguage: Language;
+    }): Promise<ApiUser> => {
+      setIsLoading(true);
+      try {
+        const result = await apiClient.auth.register(data);
+        setUser(result.user);
+        return result.user;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    []
   );
+
+  const logout = useCallback(async (): Promise<void> => {
+    setIsLoading(true);
+    try {
+      await apiClient.auth.logout();
+      setUser(null);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const updateStream = useCallback((stream: Stream) => {
+    setUser((prev) => (prev ? { ...prev, stream } : null));
+  }, []);
+
+  const upgradeToPremium = useCallback(() => {
+    setUser((prev) => (prev ? { ...prev, accessTier: 'premium' } : null));
+  }, []);
+
+  const value = {
+    user,
+    isLoading,
+    isAuthenticated: Boolean(user),
+    isAdmin: user?.role === 'admin',
+    login,
+    register,
+    logout,
+    refreshUser,
+    updateStream,
+    upgradeToPremium,
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {

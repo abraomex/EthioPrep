@@ -14,24 +14,41 @@ export function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) {
       setError('Please fill in both fields.');
       return;
     }
-    login(email, 'student');
-    navigate('/dashboard');
+    try {
+      setError('');
+      const loggedInUser = await login(email, password);
+      if (loggedInUser.role === 'admin') {
+        navigate('/admin');
+      } else {
+        navigate('/dashboard');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Login failed. Please check your credentials.');
+    }
   };
 
-  const handleDemoStudent = () => {
-    login('student@ethioprep.edu.et', 'student');
-    navigate('/dashboard');
+  const handleDemoStudent = async () => {
+    try {
+      await login('student@ethioprep.edu.et', 'Password123!');
+      navigate('/dashboard');
+    } catch {
+      navigate('/dashboard');
+    }
   };
 
-  const handleDemoAdmin = () => {
-    login('admin@ethioprep.edu.et', 'admin');
-    navigate('/admin');
+  const handleDemoAdmin = async () => {
+    try {
+      await login('admin@ethioprep.edu.et', 'Admin123!');
+      navigate('/admin');
+    } catch {
+      navigate('/admin');
+    }
   };
 
   return (

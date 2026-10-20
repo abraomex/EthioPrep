@@ -44,6 +44,15 @@ export function DashboardSidebar({ collapsed = false, onToggle, isAdminArea = fa
       label: t('nav.profile'),
       icon: '⚙️',
     },
+    ...(user?.role === 'admin'
+      ? [
+          {
+            to: '/admin',
+            label: '🛡️ Admin Portal',
+            icon: '⚡',
+          },
+        ]
+      : []),
   ];
 
   const adminLinks = [
